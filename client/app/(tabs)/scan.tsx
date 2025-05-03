@@ -15,6 +15,9 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useCameraPermissions } from "expo-camera";
 import * as Camera from "expo-camera";
+import Constants from "expo-constants";
+
+const { localHost } = Constants.expoConfig?.extra || {};
 
 const Scan = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -88,8 +91,16 @@ const Scan = () => {
         name: "upload.jpg",
       } as any);
 
+      // const response = await fetch(`${localHost}/predict/result`, {
+      //   method: "POST",
+      //   body: formData,
+      //   headers: {
+      //     "Content-Type": "multipart/form-data",
+      //   },
+      // });
+
       const response = await fetch(
-        "http://192.1681231.1.5552:5000/api/predict/result",
+        "http://172.20.10.2:5000/api/predict/result",
         {
           method: "POST",
           body: formData,
@@ -104,8 +115,8 @@ const Scan = () => {
       if (response.ok) {
         setAnalysisResult({
           disease: result.predicted_class,
-          confidence: result.confidence * 100,
-          recommendation: result.predicted_class,
+          confidence: result.confidence,
+          recommendation: result.recommendation,
         });
       } else {
         Alert.alert(
@@ -120,6 +131,53 @@ const Scan = () => {
       setIsAnalyzing(false);
     }
   };
+
+  // const saveResultToDatabase = async (
+  //   imageUri: string,
+  //   analysisResult: {
+  //     disease: string;
+  //     confidence: number;
+  //     recommendation: string;
+  //   }
+  // ) => {
+  //   try {
+  //     // Create a payload with all the data you want to save
+  //     const payload = {
+  //       imageUri,
+  //       disease: analysisResult.disease,
+  //       confidence: analysisResult.confidence,
+  //       recommendation: analysisResult.recommendation,
+  //       timestamp: new Date().toISOString(),
+  //     };
+
+  //     // Send the data to your server endpoint
+  //     const response = await fetch("http://192.168.1.3:5000/api/results/save", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(payload),
+  //     });
+
+  //     const result = await response.json();
+
+  //     if (response.ok) {
+  //       console.log("Result saved successfully:", result);
+  //       return result;
+  //     } else {
+  //       console.error("Failed to save result:", result);
+  //       Alert.alert(
+  //         "Save Error",
+  //         result.error || "Failed to save analysis result"
+  //       );
+  //       throw new Error(result.error || "Failed to save analysis result");
+  //     }
+  //   } catch (error) {
+  //     console.error("Save error:", error);
+  //     Alert.alert("Error", "Failed to save analysis result to database.");
+  //     throw error;
+  //   }
+  // };
 
   const resetScan = () => {
     setImage(null);
@@ -239,8 +297,9 @@ const Scan = () => {
 
                 <TouchableOpacity
                   className="flex-1 flex-row items-center justify-center bg-green-600 p-4 rounded-2xl"
-                  onPress={() =>
-                    Alert.alert("Save", "Result saved to your history")
+                  onPress={
+                    () => Alert.alert("Save", "Result saved to your history")
+                    // saveResultToDatabase
                   }
                 >
                   <Ionicons name="save-outline" size={20} color="white" />

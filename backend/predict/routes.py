@@ -7,6 +7,14 @@ import numpy as np
 import os
 from io import BytesIO
 from .models import db, ScanHistory
+from dotenv import load_dotenv
+from google import genai
+
+load_dotenv()
+
+api_key = os.getenv("GOOGLE_API_KEY")
+
+
 
 predict_bp = Blueprint('predict', __name__)
 
@@ -18,8 +26,16 @@ model = load_model('finalcropnoses.keras')
 class_names = ['Bacterial', 'Fungal', 'Healthy']
 
 
+
+
+
 @predict_bp.route('/result', methods=['POST'])
 def predict():
+
+
+    client = genai.Client(api_key=api_key)
+
+   
 
 
     if 'image' not in request.files:
@@ -36,15 +52,40 @@ def predict():
     img_array = np.expand_dims(img_array, axis=0)  
     img_array /= 255.0  
     
+
+    
+
+
     # Predict
     predictions = model.predict(img_array)
     predicted_index = np.argmax(predictions)
     predicted_class = class_names[predicted_index]
     confidence = float(predictions[0][predicted_index])
 
+
+    prompt = (
+    f"Briefly explain what the plant disease '{predicted_class}' is in about 2 sentences. "
+    f"Include its causes, symptoms, and effects on the plant.\n\n"
+    f"Then, provide at least three simple tips to treat or prevent '{predicted_class}'. "
+    f"1. Tip 1\n"
+    f"2. Tip 2\n"
+    f"3. Tip 3\n\n"
+    f"Keep everything short, clear, and easy to understand. and also in the tips ensure this following format: 1. Improve Air Circulation: Space plants adequately to allow for good airflow and reduce humidity, a breeding ground for fungi.\n instead of **Improve Air Circulation:** Space plants adequately to allow for good airflow and reduce humidity, a breeding ground for fungi. "
+    )
+
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=prompt,
+    )
+
+
+    print(f"Predicted class: {predicted_class}, Confidence: {confidence}")
+
     return jsonify({
         "predicted_class": predicted_class,
-        "confidence": round(confidence, 4)
+        "confidence": round(confidence, 2) * 100,
+        "recommendation": response.text
     })
 
 

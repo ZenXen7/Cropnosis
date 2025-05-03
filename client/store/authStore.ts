@@ -1,4 +1,7 @@
 import { create } from "zustand";
+import Constants from "expo-constants";
+
+// const { localHost } = Constants.expoConfig?.extra || {};
 
 interface AuthState {
   email: string;
@@ -62,8 +65,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const formattedDate = birthDate.toISOString().split("T")[0];
 
+      // const response = await fetch(`${localHost}/auth/register`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     Accept: "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     email,
+      //     password,
+      //     firstName,
+      //     lastName,
+      //     birthDate: formattedDate,
+      //   }),
+      // });
+
       const response = await fetch(
-        "http://192.168.11111.23:5000/api/auth/register",
+        "http://172.20.10.2:5000/api/auth/register",
         {
           method: "POST",
           headers: {
@@ -83,7 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Registration failed"); // Changed from data.message to data.error
+        throw new Error(data.error || "Registration failed");
       }
 
       set({
@@ -120,19 +138,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: true });
 
-      const response = await fetch(
-        "http://192.16822.1.123121:5000/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
+      // const response = await fetch(`${localHost}/auth/login`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({
+      //     email,
+      //     password,
+      //   }),
+      // });
+
+      const response = await fetch("http://172.20.10.2:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
       const data = await response.json();
 
@@ -157,17 +183,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  //   logoutUser: async () => {
+  //     try {
+  //       const response = await fetch(`${localHost}/auth/logout`, {
+  //         method: "POST",
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //         },
+  //       });
+
+  //       const data = await response.json();
+
+  //       if (!response.ok) {
+  //         throw new Error(data.error || "Logout failed");
+  //       }
+
+  //       set({
+  //         isAuthenticated: false,
+  //         email: "",
+  //         password: "",
+  //         firstName: "",
+  //         lastName: "",
+  //         birthDate: new Date(),
+  //       });
+
+  //       return { success: true, message: "Logged out successfully" };
+  //     } catch (error: any) {
+  //       console.error("Logout error:", error);
+  //       return {
+  //         success: false,
+  //         message: error.message || "An error occurred during logout",
+  //       };
+  //     }
+  //   },
+  // }));
+
   logoutUser: async () => {
     try {
-      const response = await fetch(
-        "http://192.1681231.1.12516:5000/api/auth/logout",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch("http://192.168.1.3:5000/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
       const data = await response.json();
 
