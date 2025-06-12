@@ -40,14 +40,6 @@ Cropnosis is a mobile application that utilizes **deep learning** and **computer
 - Built with **TensorFlow/Keras or PyTorch**.  
 - Training scripts and dataset preprocessing will be included in `model/` directory.  
 
-## 📌 Roadmap  
-
-- [ ] Train and optimize CNN model  
-- [ ] Implement backend API with PostgreSQL  
-- [ ] Develop and test React Native UI  
-- [ ] Integrate AI model with mobile app  
-- [ ] Deploy the app to **Google Play Store & App Store**  
-
 ## 🎯 Contributing  
 
 We welcome contributions! Feel free to open issues and pull requests.  
