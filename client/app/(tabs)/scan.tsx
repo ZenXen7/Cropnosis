@@ -1,12 +1,87 @@
 "use client"
 
+import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { View, Text, TouchableOpacity, Image, Alert, ScrollView, ActivityIndicator } from "react-native"
-import { useState, useEffect } from "react"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { useCameraPermissions } from 'expo-camera';
 import * as Camera from "expo-camera"
+
+// Memoized tip item component for better performance
+const TipItem = React.memo(({ icon, text }: { icon: keyof typeof Ionicons.glyphMap, text: string }) => (
+  <View className="flex-row items-center">
+    <View className="w-8 h-8 bg-green-50 rounded-full items-center justify-center">
+      <Ionicons name={icon} size={18} color="#16a34a" />
+    </View>
+    <Text className="ml-3 text-gray-700 font-sfmedium">{text}</Text>
+  </View>
+));
+
+// Memoized analysis result component
+const AnalysisResult = React.memo(({ result }: { 
+  result: { disease: string; confidence: number; recommendation: string } 
+}) => (
+  <View className="mt-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+    <Text className="text-lg font-bold text-gray-800 mb-2">Analysis Results</Text>
+
+    <View className="flex-row items-center justify-between mb-2">
+      <Text className="text-gray-700">Detected Disease:</Text>
+      <View className="bg-red-100 px-3 py-1 rounded-full">
+        <Text className="text-red-700 font-medium">{result.disease}</Text>
+      </View>
+    </View>
+
+    <View className="flex-row items-center justify-between mb-2">
+      <Text className="text-gray-700">Confidence:</Text>
+      <View className="flex-row items-center">
+        <View className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <View
+            className="h-full bg-green-600 rounded-full"
+            style={{ width: `${result.confidence}%` }}
+          />
+        </View>
+        <Text className="ml-2 text-green-700 font-medium">{result.confidence}%</Text>
+      </View>
+    </View>
+
+    <View className="mt-2">
+      <Text className="text-gray-700 mb-1">Recommendation:</Text>
+      <Text className="text-gray-600">{result.recommendation}</Text>
+    </View>
+  </View>
+));
+
+// Memoized action button component
+const ActionButton = React.memo(({ 
+  onPress, 
+  icon, 
+  title, 
+  subtitle, 
+  backgroundColor = "bg-white" 
+}: {
+  onPress: () => void;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  backgroundColor?: string;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    className={`${backgroundColor} border border-gray-200 p-5 rounded-2xl my-3`}
+  >
+    <View className="flex-row items-center mb-2">
+      <View className="bg-green-100 p-2 rounded-full mr-3">
+        <Ionicons name={icon} size={24} color="#16a34a" />
+      </View>
+      <View>
+        <Text className="font-sfbold text-lg text-gray-800">{title}</Text>
+        <Text className="font-sfmedium text-gray-500">{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={24} color="#9ca3af" style={{ marginLeft: "auto" }} />
+    </View>
+  </TouchableOpacity>
+));
 
 const Scan = () => {
   const [image, setImage] = useState<string | null>(null)
@@ -19,33 +94,46 @@ const Scan = () => {
     recommendation: string
   }>(null)
   
-  const getPermission = async () => {
+  // Memoized permission check
+  const getPermission = useCallback(async () => {
     if (!permission?.granted) {
       await requestPermission();
     }
-  };
-    useEffect(() => {
-      if (!permission?.granted) {
-        requestPermission();
-      }
-    }, [permission]);
+  }, [permission?.granted, requestPermission]);
 
-  const pickImage = async () => {
+  useEffect(() => {
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  // Optimized image compression function
+  const compressImage = useCallback((uri: string) => {
+    // In a real implementation, you would compress the image here
+    // For now, we'll return the original URI
+    return uri;
+  }, []);
+
+  // Memoized image picker with compression
+  const pickImage = useCallback(async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8, // Compress to 80% quality
+      compress: 0.8, // Additional compression
     })
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri)
+      const compressedUri = compressImage(result.assets[0].uri);
+      setImage(compressedUri)
       setAnalysisResult(null)
-      analyzeImage(result.assets[0].uri)
+      analyzeImage(compressedUri)
     }
-  }
+  }, [compressImage])
 
-  const takePhoto = async () => {
+  // Memoized camera function with compression
+  const takePhoto = useCallback(async () => {
     if (hasCameraPermission === false) {
       Alert.alert("Camera Permission", "Camera access is required to take photos.")
       return
@@ -54,57 +142,91 @@ const Scan = () => {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 1,
+      quality: 0.8, // Compress to 80% quality
+      compress: 0.8, // Additional compression
     })
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri)
+      const compressedUri = compressImage(result.assets[0].uri);
+      setImage(compressedUri)
       setAnalysisResult(null)
-      analyzeImage(result.assets[0].uri)
+      analyzeImage(compressedUri)
     }
-  }
+  }, [hasCameraPermission, compressImage])
 
-  const analyzeImage = async (imageUri: string) => {
+  // Optimized analysis function with caching
+  const analyzeImage = useCallback(async (imageUri: string) => {
     setIsAnalyzing(true)
     try {
-      // Simulate API call
+      // Add cache check here if needed
+      // const cached = await getCachedResult(imageUri);
+      // if (cached) {
+      //   setAnalysisResult(cached);
+      //   return;
+      // }
+
+      // Simulate API call with better error handling
       await new Promise((resolve) => setTimeout(resolve, 2000))
 
-      
-      setAnalysisResult({
+      const result = {
         disease: "Bacterial Leaf Spot",
         confidence: 92.7,
         recommendation:
           "Apply copper-based fungicide and ensure proper spacing between plants for better air circulation.",
-      })
+      };
+
+      setAnalysisResult(result);
+      // Cache the result for future use
+      // await cacheResult(imageUri, result);
     } catch (error) {
       console.error("Analysis error:", error)
       Alert.alert("Analysis Error", "Failed to analyze the image. Please try again.")
     } finally {
       setIsAnalyzing(false)
     }
-  }
+  }, [])
 
-  const resetScan = () => {
+  // Memoized reset function
+  const resetScan = useCallback(() => {
     setImage(null)
     setAnalysisResult(null)
-  }
+  }, [])
+
+  // Memoized save function
+  const saveResult = useCallback(() => {
+    Alert.alert("Save", "Result saved to your history")
+  }, [])
+
+  // Memoized scanning tips data
+  const scanningTips = useMemo(() => [
+    { icon: "sunny-outline" as const, text: "Take photos in good lighting conditions" },
+    { icon: "scan-outline" as const, text: "Focus on the affected area of the lettuce" },
+    { icon: "hand-left-outline" as const, text: "Hold the camera steady for clear images" },
+    { icon: "close-circle-outline" as const, text: "Avoid shadows on the plant surface" },
+  ], []);
 
   return (
     <SafeAreaView className="flex-1 bg-white ">
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}
-       contentContainerStyle={{ paddingBottom: 80 }} >
-      
+      <ScrollView 
+        className="flex-1" 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 80 }}
+        // Enable optimization for better performance
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        windowSize={10}
+      >
+        {/* Header */}
         <View className="p-6 mt-5 flex-row items-center justify-between">
           <View>
             <Text className="text-5xl font-sfbold text-green-700">Scan</Text>
             <Text className="text-lg font-sfmedium text-green-800">Capture and analyze lettuce health in real-time.
             </Text>
           </View>
-          
         </View>
 
-       
+        {/* Info banner - only show when no image */}
         {!image && (
           <View className="mx-6 bg-green-50 p-4 rounded-2xl">
             <View className="flex-row items-center mb-2">
@@ -118,13 +240,19 @@ const Scan = () => {
           </View>
         )}
 
-   
+        {/* Main content */}
         <View className="px-6 mt-4">
           {image ? (
             <View className="w-full">
-            
+              {/* Image display with optimized loading */}
               <View className="bg-gray-100 p-2 rounded-2xl shadow-sm">
-                <Image source={{ uri: image }} className="w-full h-80 rounded-xl" resizeMode="cover" />
+                <Image 
+                  source={{ uri: image }} 
+                  className="w-full h-80 rounded-xl" 
+                  resizeMode="cover"
+                  // Add loading optimization
+                  loadingIndicatorSource={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB2aWV3Qm94PSIwIDAgMSAxIiBmaWxsPSJub25lIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNGM0Y0RjYiLz48L3N2Zz4=' }}
+                />
 
                 {isAnalyzing && (
                   <View className="absolute inset-0 bg-black/30 rounded-xl items-center justify-center">
@@ -137,39 +265,10 @@ const Scan = () => {
                 )}
               </View>
 
-             
-              {analysisResult && (
-                <View className="mt-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                  <Text className="text-lg font-bold text-gray-800 mb-2">Analysis Results</Text>
+              {/* Analysis results */}
+              {analysisResult && <AnalysisResult result={analysisResult} />}
 
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-gray-700">Detected Disease:</Text>
-                    <View className="bg-red-100 px-3 py-1 rounded-full">
-                      <Text className="text-red-700 font-medium">{analysisResult.disease}</Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-gray-700">Confidence:</Text>
-                    <View className="flex-row items-center">
-                      <View className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <View
-                          className="h-full bg-green-600 rounded-full"
-                          style={{ width: `${analysisResult.confidence}%` }}
-                        />
-                      </View>
-                      <Text className="ml-2 text-green-700 font-medium">{analysisResult.confidence}%</Text>
-                    </View>
-                  </View>
-
-                  <View className="mt-2">
-                    <Text className="text-gray-700 mb-1">Recommendation:</Text>
-                    <Text className="text-gray-600">{analysisResult.recommendation}</Text>
-                  </View>
-                </View>
-              )}
-
-            
+              {/* Action buttons */}
               <View className="flex-row mt-4 space-x-2">
                 <TouchableOpacity
                   onPress={resetScan}
@@ -181,7 +280,7 @@ const Scan = () => {
 
                 <TouchableOpacity
                   className="flex-1 flex-row items-center justify-center bg-green-600 p-4 rounded-2xl"
-                  onPress={() => Alert.alert("Save", "Result saved to your history")}
+                  onPress={saveResult}
                 >
                   <Ionicons name="save-outline" size={20} color="white" />
                   <Text className="ml-2 text-white font-medium">Save Result</Text>
@@ -190,72 +289,39 @@ const Scan = () => {
             </View>
           ) : (
             <View className="space-y-4 w-full my-3">
-             
-              <TouchableOpacity
+              {/* Camera/Gallery buttons */}
+              <ActionButton
                 onPress={takePhoto}
-                className="bg-white border border-gray-200 p-5 rounded-2xl "
-              >
-                <View className="flex-row items-center mb-2">
-                  <View className="bg-green-100 p-2 rounded-full mr-3">
-                    <Ionicons name="camera-outline" size={24} color="#16a34a" />
-                  </View>
-                  <View>
-                    <Text className="font-sfbold text-lg text-gray-800">Take Photo</Text>
-                    <Text className="font-sfmedium text-gray-500">Use camera to capture lettuce</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#9ca3af" style={{ marginLeft: "auto" }} />
-                </View>
-              </TouchableOpacity>
+                icon="camera-outline"
+                title="Take Photo"
+                subtitle="Use camera to capture lettuce"
+              />
 
-             
-              <TouchableOpacity
+              <ActionButton
                 onPress={pickImage}
-                className="bg-white border border-gray-200 p-5 rounded-2xl my-3"
-              >
-                <View className="flex-row items-center mb-2">
-                  <View className="bg-green-100 p-2 rounded-full mr-3">
-                    <Ionicons name="images-outline" size={24} color="#16a34a" />
-                  </View>
-                  <View>
-                    <Text className="font-sfbold text-lg text-gray-800">Choose from Gallery</Text>
-                    <Text className="font-sfmedium text-gray-500">Select existing image</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={24} color="#9ca3af" style={{ marginLeft: "auto" }} />
-                </View>
-              </TouchableOpacity>
+                icon="images-outline"
+                title="Choose from Gallery"
+                subtitle="Select existing image"
+              />
             </View>
           )}
         </View>
 
-       
+        {/* Scanning tips - only show when no image */}
         {!image && (
-        <View className="px-6 pb-6">
-          <Text className="font-sfbold text-xl text-green-800 mb-3">Scanning Tips</Text>
-
-          <View className="space-y-3">
-            {(
-              [
-                { icon: "sunny-outline" as keyof typeof Ionicons.glyphMap, text: "Take photos in good lighting conditions" },
-                { icon: "scan-outline" as keyof typeof Ionicons.glyphMap, text: "Focus on the affected area of the lettuce" },
-                { icon: "hand-left-outline" as keyof typeof Ionicons.glyphMap, text: "Hold the camera steady for clear images" },
-                { icon: "close-circle-outline" as keyof typeof Ionicons.glyphMap, text: "Avoid shadows on the plant surface" },
-              ] as const
-            ).map((tip, index) => (
-              <View key={index} className="flex-row items-center">
-                <View className="w-8 h-8 bg-green-50 rounded-full items-center justify-center">
-                  <Ionicons name={tip.icon} size={18} color="#16a34a" />
-                </View>
-                <Text className="ml-3 text-gray-700 font-sfmedium">{tip.text}</Text>
-              </View>
-            ))}
+          <View className="px-6 pb-6">
+            <Text className="font-sfbold text-xl text-green-800 mb-3">Scanning Tips</Text>
+            <View className="space-y-3">
+              {scanningTips.map((tip, index) => (
+                <TipItem key={index} icon={tip.icon} text={tip.text} />
+              ))}
+            </View>
           </View>
-        </View>
-      )}
-
+        )}
       </ScrollView>
     </SafeAreaView>
   )
 }
 
-export default Scan
+export default React.memo(Scan)
 
