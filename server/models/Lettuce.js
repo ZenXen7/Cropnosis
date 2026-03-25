@@ -1,8 +1,8 @@
 const mongoose = require("mongoose");
 
-const ImageSchema = new mongoose.Schema({
+const LettuceImageSchema = new mongoose.Schema({
   img: Buffer,
   contentType: String,
 });
 
-module.exports = mongoose.model("Image", ImageSchema);
+module.exports = mongoose.model("LettuceImage", LettuceImageSchema);

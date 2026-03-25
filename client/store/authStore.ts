@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { apiService } from "../lib/api"
 
 interface AuthState {
   email: string
@@ -6,6 +7,7 @@ interface AuthState {
   firstName: string
   lastName: string
   birthDate: Date
+  userId: string | null
   isAuthenticated: boolean
   isLoading: boolean
   setEmail: (email: string) => void
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   firstName: "",
   lastName: "",
   birthDate: new Date(),
+  userId: null,
   isAuthenticated: false,
   isLoading: false,
   setEmail: (email) => set({ email }),
@@ -60,37 +63,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const formattedDate = birthDate.toISOString().split("T")[0]
 
-      // Update the URL to match your server address
-      const response = await fetch("http://192.168.1.7:3000/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          firstName,
-          lastName,
-          birthDate: formattedDate,
-        }),
+      // Use the new API service
+      const result = await apiService.register({
+        email,
+        password,
+        firstName,
+        lastName,
+        birthDate: formattedDate,
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registration failed") // Changed from data.message to data.error
+      if (result.success) {
+        set({
+          email: "",
+          password: "",
+          firstName: "",
+          lastName: "",
+          birthDate: new Date(),
+        })
+        return { success: true, message: "Account created successfully!" }
+      } else {
+        throw new Error(result.error || "Registration failed")
       }
-
-      set({
-        email: "",
-        password: "",
-        firstName: "",
-        lastName: "",
-        birthDate: new Date(),
-      })
-
-      return { success: true, message: "Account created successfully!" }
     } catch (error: any) {
       console.error("Registration error:", error)
       return {
@@ -115,30 +108,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isLoading: true })
 
-      const response = await fetch("http://192.168.1.7:3000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      })
+      // Use the new API service
+      const result = await apiService.login({ email, password })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed")
+      if (result.success) {
+        const loggedInUserId = result.data?.user?.id || null
+        const loggedInFirstName = result.data?.user?.firstName || ""
+        const loggedInLastName = result.data?.user?.lastName || ""
+        set({ 
+          isAuthenticated: true,
+          userId: loggedInUserId,
+          firstName: loggedInFirstName,
+          lastName: loggedInLastName,
+          email: result.data?.user?.email || get().email,
+          password: "" 
+        })
+        return { success: true, message: "Login successful!" }
+      } else {
+        throw new Error(result.error || "Login failed")
       }
-
-      
-      set({ 
-        isAuthenticated: true,
-        password: "" 
-      })
-
-      return { success: true, message: "Login successful!" }
     } catch (error: any) {
       console.error("Login error:", error)
       return {
@@ -152,29 +140,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logoutUser: async () => {
     try {
-      const response = await fetch("http://192.168.1.7:3000/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      // Use the new API service
+      const result = await apiService.logout();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Logout failed");
+      if (result.success) {
+        set({
+          isAuthenticated: false,
+          userId: null,
+          email: "",
+          password: "",
+          firstName: "",
+          lastName: "",
+          birthDate: new Date(),
+        });
+        return { success: true, message: "Logged out successfully" };
+      } else {
+        throw new Error(result.error || "Logout failed");
       }
-
-      set({
-        isAuthenticated: false,
-        email: "",
-        password: "",
-        firstName: "",
-        lastName: "",
-        birthDate: new Date(),
-      });
-
-      return { success: true, message: "Logged out successfully" };
     } catch (error: any) {
       console.error("Logout error:", error);
       return {

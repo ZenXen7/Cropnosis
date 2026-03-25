@@ -10,9 +10,16 @@ const app = express();
 
 app.use(
   cors({
-    origin: true,
+    origin: [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "http://10.0.2.2:3000", // Android emulator
+      "exp://localhost:19000", // Expo development
+      "exp://192.168.1.11:19000", // Expo on network
+    ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept"],
   })
 );
 

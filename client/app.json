@@ -39,7 +39,8 @@
         {
           "cameraPermission": "Allow Cropnosis to access your camera to scan lettuce."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
