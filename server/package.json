@@ -4,13 +4,21 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon server.js"
+    "start": "nodemon server.js",
+    "migrate": "node migrations/migrate.js up",
+    "migrate:rollback": "node migrations/migrate.js down",
+    "migrate:status": "node migrations/migrate.js status",
+    "migrate:rollback:all": "node migrations/migrate.js down 999",
+    "db:test": "node test-db.js",
+    "db:setup": "node setup-database.js",
+    "db:insert-users": "node insert-users.js",
+    "db:list-users": "node insert-users.js list"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@tensorflow/tfjs-node": "^4.22.0",
+    "@google/generative-ai": "^0.24.1",
     "@types/jsonwebtoken": "^9.0.9",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^3.0.2",

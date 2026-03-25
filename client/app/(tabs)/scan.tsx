@@ -7,16 +7,37 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { useCameraPermissions } from 'expo-camera';
 import * as Camera from "expo-camera"
+import { API_BASE_URL } from "@/lib/apiConfig"
+import { useAuthStore } from "@/store/authStore"
 
 const Scan = () => {
+  const userId = useAuthStore((state) => state.userId)
   const [image, setImage] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null)
   const [permission, requestPermission] = useCameraPermissions();
   const [analysisResult, setAnalysisResult] = useState<null | {
-    disease: string
-    confidence: number
-    recommendation: string
+    predictions: Array<{name: string, confidence: number}>
+    aiAnalysis: {
+      disease: string
+      confidence: number
+      severity: string
+      description: string
+      symptoms: string[]
+      causes: string[]
+      treatment: {
+        immediate: string
+        long_term: string
+      }
+      prevention: string[]
+      recommendations: string[]
+      risk_level: string
+      estimated_loss: string
+      next_steps: string
+    }
+    processingTime: number
+    success: boolean
+    message: string
   }>(null)
   
   const getPermission = async () => {
@@ -67,16 +88,34 @@ const Scan = () => {
   const analyzeImage = async (imageUri: string) => {
     setIsAnalyzing(true)
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      // Create FormData for image upload
+      const formData = new FormData()
+      formData.append('image', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: 'crop-image.jpg',
+      } as any)
+      if (userId) {
+        formData.append('userId', userId)
+      }
 
-      
-      setAnalysisResult({
-        disease: "Bacterial Leaf Spot",
-        confidence: 92.7,
-        recommendation:
-          "Apply copper-based fungicide and ensure proper spacing between plants for better air circulation.",
+      // Make API call to your backend
+      const response = await fetch(`${API_BASE_URL}/predict`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
+
+      const data = await response.json()
+      
+      if (data.success) {
+        console.log('🤖 AI Analysis received:', data.aiAnalysis)
+        setAnalysisResult(data)
+      } else {
+        throw new Error(data.error || 'Analysis failed')
+      }
     } catch (error) {
       console.error("Analysis error:", error)
       Alert.alert("Analysis Error", "Failed to analyze the image. Please try again.")
@@ -139,32 +178,100 @@ const Scan = () => {
 
              
               {analysisResult && (
-                <View className="mt-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-                  <Text className="text-lg font-bold text-gray-800 mb-2">Analysis Results</Text>
+                <View className="mt-4 space-y-4">
+                  {/* Basic Results */}
+                  <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                    <Text className="text-lg font-bold text-gray-800 mb-3">🤖 AI Analysis Results</Text>
 
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-gray-700">Detected Disease:</Text>
-                    <View className="bg-red-100 px-3 py-1 rounded-full">
-                      <Text className="text-red-700 font-medium">{analysisResult.disease}</Text>
-                    </View>
-                  </View>
-
-                  <View className="flex-row items-center justify-between mb-2">
-                    <Text className="text-gray-700">Confidence:</Text>
-                    <View className="flex-row items-center">
-                      <View className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <View
-                          className="h-full bg-green-600 rounded-full"
-                          style={{ width: `${analysisResult.confidence}%` }}
-                        />
+                    <View className="flex-row items-center justify-between mb-3">
+                      <Text className="text-gray-700">Detected Disease:</Text>
+                      <View className={`px-3 py-1 rounded-full ${
+                        analysisResult.aiAnalysis.severity === 'high' ? 'bg-red-100' :
+                        analysisResult.aiAnalysis.severity === 'moderate' ? 'bg-yellow-100' :
+                        analysisResult.aiAnalysis.severity === 'low' ? 'bg-green-100' : 'bg-gray-100'
+                      }`}>
+                        <Text className={`font-medium ${
+                          analysisResult.aiAnalysis.severity === 'high' ? 'text-red-700' :
+                          analysisResult.aiAnalysis.severity === 'moderate' ? 'text-yellow-700' :
+                          analysisResult.aiAnalysis.severity === 'low' ? 'text-green-700' : 'text-gray-700'
+                        }`}>
+                          {analysisResult.aiAnalysis.disease}
+                        </Text>
                       </View>
-                      <Text className="ml-2 text-green-700 font-medium">{analysisResult.confidence}%</Text>
+                    </View>
+
+                    <View className="flex-row items-center justify-between mb-3">
+                      <Text className="text-gray-700">Confidence:</Text>
+                      <View className="flex-row items-center">
+                        <View className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                          <View
+                            className="h-full bg-green-600 rounded-full"
+                            style={{ width: `${(analysisResult.aiAnalysis.confidence * 100)}%` }}
+                          />
+                        </View>
+                        <Text className="ml-2 text-green-700 font-medium">
+                          {(analysisResult.aiAnalysis.confidence * 100).toFixed(1)}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="flex-row items-center justify-between mb-3">
+                      <Text className="text-gray-700">Risk Level:</Text>
+                      <View className={`px-3 py-1 rounded-full ${
+                        analysisResult.aiAnalysis.risk_level === 'high' ? 'bg-red-100' :
+                        analysisResult.aiAnalysis.risk_level === 'moderate' ? 'bg-yellow-100' :
+                        analysisResult.aiAnalysis.risk_level === 'low' ? 'bg-green-100' : 'bg-gray-100'
+                      }`}>
+                        <Text className={`font-medium ${
+                          analysisResult.aiAnalysis.risk_level === 'high' ? 'text-red-700' :
+                          analysisResult.aiAnalysis.risk_level === 'moderate' ? 'text-yellow-700' :
+                          analysisResult.aiAnalysis.risk_level === 'low' ? 'text-green-700' : 'text-gray-700'
+                        }`}>
+                          {analysisResult.aiAnalysis.risk_level.toUpperCase()}
+                        </Text>
+                      </View>
                     </View>
                   </View>
 
-                  <View className="mt-2">
-                    <Text className="text-gray-700 mb-1">Recommendation:</Text>
-                    <Text className="text-gray-600">{analysisResult.recommendation}</Text>
+                  {/* AI Analysis Details */}
+                  <View className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                    <Text className="text-lg font-bold text-gray-800 mb-3">📋 Detailed Analysis</Text>
+                    
+                    <View className="mb-3">
+                      <Text className="text-gray-700 font-medium mb-1">Description:</Text>
+                      <Text className="text-gray-600">{analysisResult.aiAnalysis.description}</Text>
+                    </View>
+
+                    <View className="mb-3">
+                      <Text className="text-gray-700 font-medium mb-1">Symptoms:</Text>
+                      {analysisResult.aiAnalysis.symptoms.map((symptom, index) => (
+                        <Text key={index} className="text-gray-600">• {symptom}</Text>
+                      ))}
+                    </View>
+
+                    <View className="mb-3">
+                      <Text className="text-gray-700 font-medium mb-1">Treatment:</Text>
+                      <Text className="text-gray-600 font-medium">Immediate:</Text>
+                      <Text className="text-gray-600 ml-2">{analysisResult.aiAnalysis.treatment.immediate}</Text>
+                      <Text className="text-gray-600 font-medium mt-1">Long-term:</Text>
+                      <Text className="text-gray-600 ml-2">{analysisResult.aiAnalysis.treatment.long_term}</Text>
+                    </View>
+
+                    <View className="mb-3">
+                      <Text className="text-gray-700 font-medium mb-1">Recommendations:</Text>
+                      {analysisResult.aiAnalysis.recommendations.map((rec, index) => (
+                        <Text key={index} className="text-gray-600">• {rec}</Text>
+                      ))}
+                    </View>
+
+                    <View className="mb-3">
+                      <Text className="text-gray-700 font-medium mb-1">Next Steps:</Text>
+                      <Text className="text-gray-600">{analysisResult.aiAnalysis.next_steps}</Text>
+                    </View>
+
+                    <View className="mt-3 p-3 bg-blue-50 rounded-lg">
+                      <Text className="text-blue-800 font-medium">Estimated Loss: {analysisResult.aiAnalysis.estimated_loss}</Text>
+                    </View>
                   </View>
                 </View>
               )}
