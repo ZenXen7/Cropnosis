@@ -40,4 +40,4 @@ console.log('  npm run migrate:rollback:all - Rollback all migrations');
 
 console.log('\n💡 MongoDB Connection Examples:');
 console.log('  Local: mongodb://localhost:27017/agrivision');
-console.log('  Atlas: mongodb+srv://user:pass@cluster.mongodb.net/agrivision');
+console.log('  Atlas: SECRET_MONGO_URI');
